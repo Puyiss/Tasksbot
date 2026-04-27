@@ -3,6 +3,10 @@
 .env.local
 .env.*.local
 
+# Bot state files
+botStatus.json
+tasks.json
+
 # Dependencies
 node_modules/
 npm-debug.log*
