@@ -9,9 +9,11 @@ function loadBotStatus() {
     if (fs.existsSync(statusFile)) {
         return JSON.parse(fs.readFileSync(statusFile, 'utf8'));
     }
+    const now = Date.now();
     return {
-        lastCheckTime: Date.now(),
-        nextCheckTime: Date.now() + (10 * 60 * 1000), // +10 minutos
+        startTime: now, // Tiempo de inicio del bot (nunca se reinicia)
+        lastCheckTime: now, // Último chequeo de tareas
+        nextCheckTime: now + (10 * 60 * 1000), // +10 minutos
         statusChannelId: null,
         isOnline: true,
         totalTasks: 0
@@ -41,7 +43,8 @@ function createStatusEmbed(totalTasks) {
     
     const lastCheckFormatted = lastCheck.toLocaleString('es-ES');
     const nextCheckFormatted = nextCheck.toLocaleString('es-ES');
-    const uptime = Math.floor((Date.now() - status.lastCheckTime) / 1000);
+    // Calcular uptime desde startTime (nunca se reinicia)
+    const uptime = Math.floor((Date.now() - status.startTime) / 1000);
     
     const uptimeFormatted = formatUptime(uptime);
     
@@ -55,7 +58,7 @@ function createStatusEmbed(totalTasks) {
             { name: '⏱️ Último chequeo', value: lastCheckFormatted, inline: false },
             { name: '⏭️ Próximo chequeo', value: nextCheckFormatted, inline: false }
         )
-        .setFooter({ text: 'Actualizado automáticamente cada 10 minutos' })
+        .setFooter({ text: '' })
         .setTimestamp();
     
     return embed;

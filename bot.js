@@ -11,7 +11,7 @@ const tareas = require('./commands/tareas');
 const seteststatus = require('./commands/seteststatus');
 
 // Import bot status
-const { updateCheckTime, createStatusEmbed, getStatusChannelId, loadBotStatus } = require('./botStatus');
+const { updateCheckTime, createStatusEmbed, getStatusChannelId, loadBotStatus, saveBotStatus } = require('./botStatus');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
@@ -83,6 +83,11 @@ async function safeInteractionReply(interaction, options) {
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
+    
+    // Initialize bot status on startup
+    const status = loadBotStatus();
+    saveBotStatus(status);
+    
     client.user.setPresence({
         activities: [{
             name: 'puyiii3',
