@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes, ChannelType, EmbedBuilder, ActivityType, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes, ChannelType, EmbedBuilder, ActivityType, ActionRowBuilder, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -8,6 +8,10 @@ const subirtarea = require('./commands/subirtarea');
 const cancelartarea = require('./commands/cancelartarea');
 const cancelartareas = require('./commands/cancelartareas');
 const tareas = require('./commands/tareas');
+const seteststatus = require('./commands/seteststatus');
+
+// Import bot status
+const { updateCheckTime, createStatusEmbed, getStatusChannelId, loadBotStatus } = require('./botStatus');
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
@@ -90,12 +94,53 @@ client.once('ready', () => {
     });
     // Start reminder interval
     setInterval(checkReminders, 60 * 1000); // Every minute
+    // Start status update interval (every 10 minutes)
+    setInterval(updateStatusChannel, 10 * 60 * 1000);
+    // Initial status update
+    updateStatusChannel();
 });
+
+async function updateStatusChannel() {
+    const statusChannelId = getStatusChannelId();
+    if (!statusChannelId) return;
+
+    try {
+        const channel = await client.channels.fetch(statusChannelId);
+        if (!channel) return;
+
+        // Contar tareas totales
+        const tasks = loadTasks();
+        let totalTasks = 0;
+        for (const userId in tasks) {
+            totalTasks += Object.keys(tasks[userId]).length;
+        }
+
+        // Crear embed de estado
+        const statusEmbed = createStatusEmbed(totalTasks);
+
+        // Obtener últimos mensajes del canal
+        const messages = await channel.messages.fetch({ limit: 1 });
+        const lastMessage = messages.first();
+
+        if (lastMessage && lastMessage.author.id === client.user.id) {
+            // Editar último mensaje
+            await lastMessage.edit({ embeds: [statusEmbed] });
+        } else {
+            // Enviar nuevo mensaje
+            await channel.send({ embeds: [statusEmbed] });
+        }
+    } catch (error) {
+        console.error('Error actualizando canal de estado:', error);
+    }
+}
 
 async function checkReminders() {
     const tasks = loadTasks();
     const now = Date.now();
     let modified = false;
+    
+    // Actualizar tiempo de chequeo
+    updateCheckTime();
 
     for (const userId in tasks) {
         const userTasks = tasks[userId];
@@ -186,6 +231,10 @@ client.on('interactionCreate', async interaction => {
         return await tareas(interaction);
     }
 
+    if (interaction.commandName === 'seteststatus') {
+        return await seteststatus(interaction);
+    }
+
 });
 
 // Deploy commands
@@ -225,7 +274,15 @@ const commands = [
                 .setRequired(false)),
     new SlashCommandBuilder()
         .setName('cancelartareas')
-        .setDescription('Cancela todas tus tareas pendientes')
+        .setDescription('Cancela todas tus tareas pendientes'),
+    new SlashCommandBuilder()
+        .setName('seteststatus')
+        .setDescription('Configura el canal donde se mostrará el estado del bot')
+        .addChannelOption(option =>
+            option.setName('canal')
+                .setDescription('Canal donde mostrar el estado')
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
