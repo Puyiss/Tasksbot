@@ -1,0 +1,16 @@
+{
+  "name": "tareas-bot",
+  "version": "1.0.0",
+  "description": "Discord bot for automated tasks with reminders",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": ["discord", "bot", "tasks", "reminders"],
+  "author": "",
+  "license": "ISC"
+}
