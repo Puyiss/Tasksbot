@@ -4,25 +4,55 @@ const { EmbedBuilder } = require('discord.js');
 
 const statusFile = path.join(__dirname, 'botStatus.json');
 
-// Cargar estado del bot
+// Cargar estado del bot con validación
 function loadBotStatus() {
-    if (fs.existsSync(statusFile)) {
-        return JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    try {
+        if (fs.existsSync(statusFile)) {
+            const data = fs.readFileSync(statusFile, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading botStatus.json:', error);
+        // Try to restore from backup if exists
+        const backupFile = statusFile + '.backup';
+        if (fs.existsSync(backupFile)) {
+            try {
+                console.warn('Attempting to restore bot status from backup...');
+                const backupData = fs.readFileSync(backupFile, 'utf8');
+                const status = JSON.parse(backupData);
+                fs.writeFileSync(statusFile, JSON.stringify(status, null, 2));
+                console.info('Bot status restored from backup successfully');
+                return status;
+            } catch (backupError) {
+                console.error('Bot status backup restore failed:', backupError);
+            }
+        }
     }
     const now = Date.now();
     return {
-        startTime: now, // Tiempo de inicio del bot (nunca se reinicia)
-        lastCheckTime: now, // Último chequeo de tareas
-        nextCheckTime: now + (10 * 60 * 1000), // +10 minutos
+        startTime: now,
+        lastCheckTime: now,
+        nextCheckTime: now + (10 * 60 * 1000),
         statusChannelId: null,
         isOnline: true,
         totalTasks: 0
     };
 }
 
-// Guardar estado del bot
+// Guardar estado del bot con backup
 function saveBotStatus(status) {
-    fs.writeFileSync(statusFile, JSON.stringify(status, null, 2));
+    try {
+        // Create backup before overwriting
+        const backupFile = statusFile + '.backup';
+        if (fs.existsSync(statusFile)) {
+            fs.copyFileSync(statusFile, backupFile);
+        }
+        // Write new data
+        fs.writeFileSync(statusFile, JSON.stringify(status, null, 2));
+    } catch (error) {
+        console.error('Error saving bot status:', error);
+        // Don't throw, just log the error
+    }
 }
 
 // Actualizar último chequeo

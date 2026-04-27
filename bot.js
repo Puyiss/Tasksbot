@@ -106,10 +106,10 @@ client.once('ready', () => {
 });
 
 async function updateStatusChannel() {
-    const statusChannelId = getStatusChannelId();
-    if (!statusChannelId) return;
-
     try {
+        const statusChannelId = getStatusChannelId();
+        if (!statusChannelId) return;
+
         const channel = await client.channels.fetch(statusChannelId);
         if (!channel) return;
 
@@ -136,48 +136,50 @@ async function updateStatusChannel() {
         }
     } catch (error) {
         console.error('Error actualizando canal de estado:', error);
+        // Continue running, don't crash
     }
 }
 
 async function checkReminders() {
-    const tasks = loadTasks();
-    const now = Date.now();
-    let modified = false;
-    
-    // Actualizar tiempo de chequeo
-    updateCheckTime();
+    try {
+        const tasks = loadTasks();
+        const now = Date.now();
+        let modified = false;
+        
+        // Actualizar tiempo de chequeo
+        updateCheckTime();
 
-    for (const userId in tasks) {
-        const userTasks = tasks[userId];
-        for (const taskId in userTasks) {
-            const task = userTasks[taskId];
-            const dueDate = new Date(task.dueDate).getTime();
-            if (dueDate <= now) continue;
+        for (const userId in tasks) {
+            const userTasks = tasks[userId];
+            for (const taskId in userTasks) {
+                const task = userTasks[taskId];
+                const dueDate = new Date(task.dueDate).getTime();
+                if (dueDate <= now) continue;
 
-            while (task.nextReminder <= now) {
-                try {
-                    const user = await client.users.fetch(userId);
-                    const dueDateFormatted = new Date(task.dueDate).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
-                    const reminderEmbed = new EmbedBuilder()
-                        .setTitle(`Hola ${user.username} 👋`)
-                        .setDescription(`Tenés que hacer lo de ${task.channelName ? `#${task.channelName}` : 'tu tarea'}`)
-                        .setColor(0x8A2BE2)
-                        .addFields(
-                            { name: 'Tarea', value: task.title, inline: false },
-                            { name: 'Fecha de entrega', value: dueDateFormatted, inline: true },
-                            { name: 'Recordatorio', value: task.reminder, inline: true }
-                        );
+                while (task.nextReminder <= now) {
+                    try {
+                        const user = await client.users.fetch(userId);
+                        const dueDateFormatted = new Date(task.dueDate).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                        const reminderEmbed = new EmbedBuilder()
+                            .setTitle(`Hola ${user.username} 👋`)
+                            .setDescription(`Tenés que hacer lo de ${task.channelName ? `#${task.channelName}` : 'tu tarea'}`)
+                            .setColor(0x8A2BE2)
+                            .addFields(
+                                { name: 'Tarea', value: task.title, inline: false },
+                                { name: 'Fecha de entrega', value: dueDateFormatted, inline: true },
+                                { name: 'Recordatorio', value: task.reminder, inline: true }
+                            );
 
-                    if (task.note) {
-                        reminderEmbed.addFields({ name: 'Nota', value: task.note });
-                    }
+                        if (task.note) {
+                            reminderEmbed.addFields({ name: 'Nota', value: task.note });
+                        }
 
-                    for (let i = 0; i < 3; i += 1) {
-                        await user.send({ content: `<@${user.id}>`, embeds: [reminderEmbed] });
-                    }
-                } catch (error) {
-                    console.error(`Error sending reminder to ${userId}:`, error);
-                    break;
+                        for (let i = 0; i < 3; i += 1) {
+                            await user.send({ content: `<@${user.id}>`, embeds: [reminderEmbed] });
+                        }
+                    } catch (error) {
+                        console.error(`Error sending reminder to ${userId}:`, error);
+                        break;
                 }
                 task.nextReminder += task.reminderIntervalMs;
                 modified = true;
@@ -187,6 +189,10 @@ async function checkReminders() {
 
     if (modified) {
         saveTasks(tasks);
+    }
+    } catch (error) {
+        console.error('Critical error in checkReminders():', error);
+        // Continue running even if something fails
     }
 }
 

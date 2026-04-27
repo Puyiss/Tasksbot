@@ -13,17 +13,47 @@ function makeChannelName(name) {
         .substring(0, 90) || 'tarea';
 }
 
-// Load tasks from file
+// Load tasks from file with error handling
 function loadTasks() {
-    if (fs.existsSync(tasksFile)) {
-        return JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+    try {
+        if (fs.existsSync(tasksFile)) {
+            const data = fs.readFileSync(tasksFile, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading tasks.json:', error);
+        // Try to restore from backup if exists
+        const backupFile = tasksFile + '.backup';
+        if (fs.existsSync(backupFile)) {
+            try {
+                console.warn('Attempting to restore from backup...');
+                const backupData = fs.readFileSync(backupFile, 'utf8');
+                const tasks = JSON.parse(backupData);
+                fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
+                console.info('Tasks restored from backup successfully');
+                return tasks;
+            } catch (backupError) {
+                console.error('Backup restore failed:', backupError);
+            }
+        }
     }
     return {};
 }
 
-// Save tasks to file
+// Save tasks to file with backup
 function saveTasks(tasks) {
-    fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
+    try {
+        // Create backup before overwriting
+        const backupFile = tasksFile + '.backup';
+        if (fs.existsSync(tasksFile)) {
+            fs.copyFileSync(tasksFile, backupFile);
+        }
+        // Write new data
+        fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
+    } catch (error) {
+        console.error('Error saving tasks:', error);
+        throw error;
+    }
 }
 
 function parseReminderInterval(text) {

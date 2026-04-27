@@ -17,7 +17,7 @@ module.exports = async (interaction) => {
             return await safeInteractionReply(interaction, { content: 'Debes proporcionar la fecha de entrega.' });
         }
 
-        // Parse due date
+        
         const parsedDueDate = new Date(dueDate);
         if (isNaN(parsedDueDate)) {
             return await safeInteractionReply(interaction, { content: 'Fecha inválida. Usa formato YYYY-MM-DD.' });
@@ -37,25 +37,15 @@ module.exports = async (interaction) => {
         }
 
         const taskId = Date.now().toString();
-        tasks[interaction.user.id][taskId] = {
-            title,
-            note: nota?.trim() || '',
-            attachmentUrl: attachmentAllowed ? attachment.url : null,
-            dueDate: parsedDueDate.toISOString(),
-            reminder: reminder || '2h',
-            reminderIntervalMs: intervalMs,
-            nextReminder: Date.now() + intervalMs,
-            channelName: null
-        };
+        let channelName = null;
 
-        saveTasks(tasks);
-
+        // Create channel FIRST (before saving task to avoid orphaned channels on restart)
         if (interaction.guild) {
             const category = interaction.guild.channels.cache.get(CATEGORY_ID);
             if (category && category.type === ChannelType.GuildCategory) {
                 const rawChannelName = makeChannelName(title);
                 const dateShort = parsedDueDate.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' });
-                let channelName = `${rawChannelName}-${dateShort}`;
+                channelName = `${rawChannelName}-${dateShort}`;
                 let suffix = 1;
                 while (interaction.guild.channels.cache.some(channel => channel.parentId === CATEGORY_ID && channel.name === channelName)) {
                     channelName = `${rawChannelName}-${dateShort}-${suffix}`;
@@ -94,15 +84,28 @@ module.exports = async (interaction) => {
                     }
 
                     await channel.send(sendOptions);
-                    tasks[interaction.user.id][taskId].channelName = channelName;
-                    saveTasks(tasks);
                 } catch (channelError) {
                     console.error('Error creando canal de tarea:', channelError);
+                    // Continue anyway, task will be created without channel
                 }
             } else {
                 console.warn(`Categoría no encontrada o no es categoría: ${CATEGORY_ID}`);
             }
         }
+
+        // NOW save task with channelName (if channel was created)
+        tasks[interaction.user.id][taskId] = {
+            title,
+            note: nota?.trim() || '',
+            attachmentUrl: attachmentAllowed ? attachment.url : null,
+            dueDate: parsedDueDate.toISOString(),
+            reminder: reminder || '2h',
+            reminderIntervalMs: intervalMs,
+            nextReminder: Date.now() + intervalMs,
+            channelName: channelName // Will be null if channel creation failed, but that's okay
+        };
+
+        saveTasks(tasks);
 
         const replyEmbed = new EmbedBuilder()
             .setTitle('Tarea creada')
