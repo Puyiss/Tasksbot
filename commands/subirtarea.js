@@ -86,10 +86,31 @@ async function handleModalSubmit(interaction) {
             return await safeInteractionReply(interaction, { content: 'Debés indicar la fecha de entrega.' });
         }
 
-        const parsedDueDate = new Date(dueDate);
-        if (Number.isNaN(parsedDueDate.getTime())) {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dueDate)) {
             return await safeInteractionReply(interaction, {
                 content: 'Fecha inválida. Usá formato **YYYY-MM-DD** (ej: 2025-12-31).'
+            });
+        }
+
+        const [year, month, day] = dueDate.split('-').map(Number);
+        const parsedDueDate = new Date(year, month - 1, day);
+        if (
+            Number.isNaN(parsedDueDate.getTime()) ||
+            parsedDueDate.getFullYear() !== year ||
+            parsedDueDate.getMonth() !== month - 1 ||
+            parsedDueDate.getDate() !== day
+        ) {
+            return await safeInteractionReply(interaction, {
+                content: 'Fecha inválida. Usá formato **YYYY-MM-DD** y un día real del calendario.'
+            });
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (parsedDueDate < today) {
+            return await safeInteractionReply(interaction, {
+                content: 'La fecha de entrega no puede ser pasada. Elegí hoy o una fecha futura.'
             });
         }
 

@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, SlashCommandBuilder, REST, Routes, ChannelType, EmbedBuilder, ActivityType, ActionRowBuilder, StringSelectMenuBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
+const { CATEGORY_ID, MAX_ATTACHMENT_SIZE, TASKS_FILE } = require('./config');
 
 // Import commands
 const subirtarea = require('./commands/subirtarea');
@@ -17,29 +17,17 @@ const client = new Client({
     restRequestTimeout: 60000,
 });
 
-const CATEGORY_ID = '1498370661507403936';
-const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024; // 50 MB
-const tasksFile = path.join(__dirname, 'data', 'tasks.json');
-
-function makeChannelName(name) {
-    return name
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .substring(0, 90) || 'tarea';
-}
-
 // Load tasks from file
 function loadTasks() {
-    if (fs.existsSync(tasksFile)) {
-        return JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+    if (fs.existsSync(TASKS_FILE)) {
+        return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8'));
     }
     return {};
 }
 
 // Save tasks to file
 function saveTasks(tasks) {
-    fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2));
+    fs.writeFileSync(TASKS_FILE, JSON.stringify(tasks, null, 2));
 }
 
 function parseReminderInterval(text) {
@@ -146,19 +134,61 @@ async function checkReminders() {
         let modified = false;
         
         // Actualizar tiempo de chequeo
-        updateCheckTime();
+        await updateCheckTime();
 
         for (const userId in tasks) {
             const userTasks = tasks[userId];
-            for (const taskId in userTasks) {
+            const taskIds = Object.keys(userTasks);
+
+            for (const taskId of taskIds) {
                 const task = userTasks[taskId];
                 const dueDate = new Date(task.dueDate).getTime();
-                if (dueDate <= now) continue;
+                const dueDateFormatted = new Date(task.dueDate).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
+
+                if (dueDate <= now) {
+                    try {
+                        const user = await client.users.fetch(userId);
+                        const overdueEmbed = new EmbedBuilder()
+                            .setTitle('🚨 Tarea vencida y eliminada')
+                            .setDescription(`La tarea **${task.title}** venció el **${dueDateFormatted}** y fue eliminada automáticamente de tu lista.`)
+                            .setColor(0xFF4500)
+                            .addFields(
+                                { name: 'Tarea', value: task.title, inline: false },
+                                { name: 'Fecha de entrega', value: dueDateFormatted, inline: true },
+                                { name: 'Recordatorio', value: task.reminder || '2h', inline: true }
+                            )
+                            .setFooter({ text: 'Volvé a crear la tarea si todavía la necesitás.' });
+
+                        if (task.note) {
+                            overdueEmbed.addFields({ name: 'Nota', value: task.note });
+                        }
+
+                        await user.send({ content: `<@${user.id}>`, embeds: [overdueEmbed] });
+                    } catch (error) {
+                        console.error(`Error sending overdue message to ${userId}:`, error);
+                    }
+
+                    if (task.channelName) {
+                        const channel = client.channels.cache.find(
+                            (ch) => ch.name === task.channelName && ch.parentId === CATEGORY_ID
+                        );
+                        if (channel) {
+                            try {
+                                await channel.delete('Tarea vencida eliminada automáticamente');
+                            } catch (channelError) {
+                                console.error('Error deleting overdue task channel:', channelError);
+                            }
+                        }
+                    }
+
+                    delete userTasks[taskId];
+                    modified = true;
+                    continue;
+                }
 
                 while (task.nextReminder <= now) {
                     try {
                         const user = await client.users.fetch(userId);
-                        const dueDateFormatted = new Date(task.dueDate).toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
                         const reminderEmbed = new EmbedBuilder()
                             .setTitle(`Hola ${user.username} 👋`)
                             .setDescription(`Tenés que hacer lo de ${task.channelName ? `#${task.channelName}` : 'tu tarea'}`)
@@ -179,16 +209,21 @@ async function checkReminders() {
                     } catch (error) {
                         console.error(`Error sending reminder to ${userId}:`, error);
                         break;
+                    }
+                    task.nextReminder += task.reminderIntervalMs;
+                    modified = true;
                 }
-                task.nextReminder += task.reminderIntervalMs;
+            }
+
+            if (Object.keys(userTasks).length === 0) {
+                delete tasks[userId];
                 modified = true;
             }
         }
-    }
 
-    if (modified) {
-        saveTasks(tasks);
-    }
+        if (modified) {
+            saveTasks(tasks);
+        }
     } catch (error) {
         console.error('Critical error in checkReminders():', error);
         // Continue running even if something fails

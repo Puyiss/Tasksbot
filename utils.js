@@ -2,10 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const { Task } = require('./models');
 const { testConnection } = require('./database');
+const { CATEGORY_ID, MAX_ATTACHMENT_SIZE, TASKS_FILE } = require('./config');
 
-const CATEGORY_ID = '1498370661507403936';
-const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024; // 50 MB
-const tasksFile = path.join(__dirname, 'data', 'tasks.json');
+const tasksFile = TASKS_FILE;
 
 // Variable para saber si usar DB o archivos
 let useDatabase = false;

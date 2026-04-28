@@ -3,8 +3,9 @@ const path = require('path');
 const { EmbedBuilder } = require('discord.js');
 const { BotStatus } = require('./models');
 const { testConnection } = require('./database');
+const { BOT_STATUS_FILE, DEFAULT_STATUS_CHANNEL_ID } = require('./config');
 
-const statusFile = path.join(__dirname, 'data', 'botStatus.json');
+const statusFile = BOT_STATUS_FILE;
 
 // Variable para saber si usar DB o archivos
 let useDatabase = false;
@@ -215,7 +216,7 @@ function setStatusChannelId(channelId) {
 // Obtener canal de estado
 function getStatusChannelId() {
     const status = loadBotStatus();
-    return status.statusChannelId;
+    return status.statusChannelId || DEFAULT_STATUS_CHANNEL_ID;
 }
 
 module.exports = {

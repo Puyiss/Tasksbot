@@ -17,7 +17,6 @@ Un bot de Discord para gestionar tareas automatizadas con recordatorios.
 
 Usa el comando `/subirtarea` en Discord:
 - `nombre`: Nombre de la tarea (opcional).
-- `archivo`: Adjunta un archivo o foto (opcional).
 - `fecha`: Fecha de entrega en formato YYYY-MM-DD.
 - `recordatorio`: Opcional, tipo de recordatorio.
 - `nota`: Información extra o comentario para la tarea (opcional).
