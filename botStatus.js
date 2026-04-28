@@ -73,6 +73,11 @@ function loadBotStatusFromFile() {
                 console.warn('Attempting to restore bot status from backup...');
                 const backupData = fs.readFileSync(backupFile, 'utf8');
                 const status = JSON.parse(backupData);
+                // Ensure directory exists
+                const dir = path.dirname(statusFile);
+                if (!fs.existsSync(dir)) {
+                    fs.mkdirSync(dir, { recursive: true });
+                }
                 fs.writeFileSync(statusFile, JSON.stringify(status, null, 2));
                 console.info('Bot status restored from backup successfully');
                 return status;
@@ -129,6 +134,11 @@ async function saveBotStatus(status) {
 // Guardar estado del bot en archivo (fallback)
 function saveBotStatusToFile(status) {
     try {
+        // Ensure directory exists
+        const dir = path.dirname(statusFile);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
         // Create backup before overwriting
         const backupFile = statusFile + '.backup';
         if (fs.existsSync(statusFile)) {

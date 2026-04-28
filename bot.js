@@ -92,7 +92,7 @@ client.once('ready', () => {
             name: 'puyiii3',
             type: ActivityType.Streaming,
             url: 'https://twitch.tv/puyiii3',
-            state: 'made by puyissw | https://github.com/puyiss'
+            state: 'Viendo Tareas 👀'
         }],
         status: 'online'
     });

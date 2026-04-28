@@ -136,6 +136,11 @@ async function saveTasks(tasks) {
 // Save tasks to file (fallback)
 function saveTasksToFile(tasks) {
     try {
+        // Ensure directory exists
+        const dir = path.dirname(tasksFile);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
         // Create backup before overwriting
         const backupFile = tasksFile + '.backup';
         if (fs.existsSync(tasksFile)) {
