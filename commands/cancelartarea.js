@@ -2,7 +2,7 @@ const { EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('dis
 const { CATEGORY_ID, loadTasks, saveTasks } = require('../utils');
 
 module.exports = async (interaction) => {
-    const tasks = loadTasks();
+    const tasks = await loadTasks();
     const userTasks = tasks[interaction.user.id] || {};
     const taskEntries = Object.entries(userTasks);
 
@@ -36,7 +36,7 @@ module.exports = async (interaction) => {
             if (channel) await channel.delete('Tarea cancelada');
         }
         delete userTasks[taskId];
-        saveTasks(tasks);
+        await saveTasks(tasks);
 
         const cancelledEmbed = new EmbedBuilder()
             .setTitle('Tarea cancelada')

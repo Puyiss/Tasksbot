@@ -4,8 +4,7 @@
 .env.*.local
 
 # Bot state files
-botStatus.json
-tasks.json
+data/
 
 # Dependencies
 node_modules/

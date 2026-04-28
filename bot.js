@@ -9,7 +9,6 @@ const cancelartarea = require('./commands/cancelartarea');
 const cancelartareas = require('./commands/cancelartareas');
 const tareas = require('./commands/tareas');
 const seteststatus = require('./commands/seteststatus');
-
 // Import bot status
 const { updateCheckTime, createStatusEmbed, getStatusChannelId, loadBotStatus, saveBotStatus } = require('./botStatus');
 
@@ -20,7 +19,7 @@ const client = new Client({
 
 const CATEGORY_ID = '1498370661507403936';
 const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024; // 50 MB
-const tasksFile = path.join(__dirname, 'tasks.json');
+const tasksFile = path.join(__dirname, 'data', 'tasks.json');
 
 function makeChannelName(name) {
     return name
@@ -197,6 +196,10 @@ async function checkReminders() {
 }
 
 client.on('interactionCreate', async interaction => {
+    if (interaction.isModalSubmit() && interaction.customId === subirtarea.MODAL_ID) {
+        return await subirtarea.handleModalSubmit(interaction);
+    }
+
     if (interaction.isStringSelectMenu() && interaction.customId === 'cancel-task-select') {
         const tasks = loadTasks();
         const userTasks = tasks[interaction.user.id] || {};
@@ -227,7 +230,7 @@ client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === 'subirtarea') {
-        return await subirtarea(interaction);
+        return await subirtarea.run(interaction);
     }
 
     if (interaction.commandName === 'cancelartarea') {
@@ -252,27 +255,7 @@ client.on('interactionCreate', async interaction => {
 const commands = [
     new SlashCommandBuilder()
         .setName('subirtarea')
-        .setDescription('Sube una tarea con nombre, fecha de entrega y recordatorio')
-        .addStringOption(option =>
-            option.setName('fecha')
-                .setDescription('Fecha de entrega (ej: 2023-12-31)')
-                .setRequired(true))
-        .addStringOption(option =>
-            option.setName('nombre')
-                .setDescription('Nombre de la tarea')
-                .setRequired(false))
-        .addAttachmentOption(option =>
-            option.setName('archivo')
-                .setDescription('Archivo o foto de la tarea (opcional)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('recordatorio')
-                .setDescription('Tipo de recordatorio (ej: 30m, 2h, 1d)')
-                .setRequired(false))
-        .addStringOption(option =>
-            option.setName('nota')
-                .setDescription('Información extra o nota para la tarea')
-                .setRequired(false)),
+        .setDescription('Abre el formulario para subir una tarea (fecha, nombre, recordatorio, nota)'),
     new SlashCommandBuilder()
         .setName('tareas')
         .setDescription('Muestra tus tareas pendientes'),

@@ -1,11 +1,64 @@
 const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder } = require('discord.js');
+const { BotStatus } = require('./models');
+const { testConnection } = require('./database');
 
-const statusFile = path.join(__dirname, 'botStatus.json');
+const statusFile = path.join(__dirname, 'data', 'botStatus.json');
+
+// Variable para saber si usar DB o archivos
+let useDatabase = false;
+
+// Inicializar conexión a DB para status
+async function initializeBotStatusDB() {
+    try {
+        const connected = await testConnection();
+        if (connected) {
+            useDatabase = true;
+        } else {
+            useDatabase = false;
+        }
+    } catch (error) {
+        useDatabase = false;
+    }
+}
 
 // Cargar estado del bot con validación
-function loadBotStatus() {
+async function loadBotStatus() {
+    if (useDatabase) {
+        try {
+            let status = await BotStatus.findOne();
+            if (!status) {
+                // Crear registro inicial
+                const now = Date.now();
+                status = await BotStatus.create({
+                    startTime: new Date(now),
+                    lastCheckTime: new Date(now),
+                    nextCheckTime: new Date(now + (10 * 60 * 1000)),
+                    statusChannelId: null,
+                    isOnline: true,
+                    totalTasks: 0
+                });
+            }
+            return {
+                startTime: status.startTime.getTime(),
+                lastCheckTime: status.lastCheckTime.getTime(),
+                nextCheckTime: status.nextCheckTime.getTime(),
+                statusChannelId: status.statusChannelId,
+                isOnline: status.isOnline,
+                totalTasks: status.totalTasks
+            };
+        } catch (error) {
+            console.error('Error loading bot status from database:', error);
+            return loadBotStatusFromFile();
+        }
+    } else {
+        return loadBotStatusFromFile();
+    }
+}
+
+// Cargar estado del bot desde archivo (fallback)
+function loadBotStatusFromFile() {
     try {
         if (fs.existsSync(statusFile)) {
             const data = fs.readFileSync(statusFile, 'utf8');
@@ -40,7 +93,41 @@ function loadBotStatus() {
 }
 
 // Guardar estado del bot con backup
-function saveBotStatus(status) {
+async function saveBotStatus(status) {
+    if (useDatabase) {
+        try {
+            const existing = await BotStatus.findOne();
+            if (existing) {
+                await existing.update({
+                    startTime: new Date(status.startTime),
+                    lastCheckTime: new Date(status.lastCheckTime),
+                    nextCheckTime: new Date(status.nextCheckTime),
+                    statusChannelId: status.statusChannelId,
+                    isOnline: status.isOnline,
+                    totalTasks: status.totalTasks
+                });
+            } else {
+                await BotStatus.create({
+                    startTime: new Date(status.startTime),
+                    lastCheckTime: new Date(status.lastCheckTime),
+                    nextCheckTime: new Date(status.nextCheckTime),
+                    statusChannelId: status.statusChannelId,
+                    isOnline: status.isOnline,
+                    totalTasks: status.totalTasks
+                });
+            }
+        } catch (error) {
+            console.error('Error saving bot status to database:', error);
+            // Fallback to file
+            saveBotStatusToFile(status);
+        }
+    } else {
+        saveBotStatusToFile(status);
+    }
+}
+
+// Guardar estado del bot en archivo (fallback)
+function saveBotStatusToFile(status) {
     try {
         // Create backup before overwriting
         const backupFile = statusFile + '.backup';
@@ -56,17 +143,17 @@ function saveBotStatus(status) {
 }
 
 // Actualizar último chequeo
-function updateCheckTime() {
-    const status = loadBotStatus();
+async function updateCheckTime() {
+    const status = await loadBotStatus();
     status.lastCheckTime = Date.now();
     status.nextCheckTime = Date.now() + (10 * 60 * 1000); // +10 minutos
     status.isOnline = true;
-    saveBotStatus(status);
+    await saveBotStatus(status);
 }
 
 // Crear o actualizar el embed de estado
-function createStatusEmbed(totalTasks) {
-    const status = loadBotStatus();
+async function createStatusEmbed(totalTasks) {
+    const status = await loadBotStatus();
     
     const lastCheck = new Date(status.lastCheckTime);
     const nextCheck = new Date(status.nextCheckTime);
@@ -88,7 +175,7 @@ function createStatusEmbed(totalTasks) {
             { name: '⏱️ Último chequeo', value: lastCheckFormatted, inline: false },
             { name: '⏭️ Próximo chequeo', value: nextCheckFormatted, inline: false }
         )
-        .setFooter({ text: '' })
+        .setFooter({ text: 'Actualizado automáticamente cada 10 minutos' })
         .setTimestamp();
     
     return embed;

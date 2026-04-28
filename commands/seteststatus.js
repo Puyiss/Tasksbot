@@ -26,7 +26,7 @@ module.exports = async (interaction) => {
     setStatusChannelId(channel.id);
 
     // Obtener estadísticas
-    const tasks = loadTasks();
+    const tasks = await loadTasks();
     let totalTasks = 0;
     for (const userId in tasks) {
         totalTasks += Object.keys(tasks[userId]).length;

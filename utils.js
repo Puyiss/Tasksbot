@@ -1,9 +1,31 @@
 const fs = require('fs');
 const path = require('path');
+const { Task } = require('./models');
+const { testConnection } = require('./database');
 
 const CATEGORY_ID = '1498370661507403936';
 const MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024; // 50 MB
-const tasksFile = path.join(__dirname, 'tasks.json');
+const tasksFile = path.join(__dirname, 'data', 'tasks.json');
+
+// Variable para saber si usar DB o archivos
+let useDatabase = false;
+
+// Inicializar conexión a DB
+async function initializeDatabase() {
+    try {
+        const connected = await testConnection();
+        if (connected) {
+            useDatabase = true;
+            console.log('📊 Usando base de datos MySQL');
+        } else {
+            useDatabase = false;
+            console.log('📁 Usando archivos JSON (fallback)');
+        }
+    } catch (error) {
+        console.error('Error inicializando base de datos:', error);
+        useDatabase = false;
+    }
+}
 
 function makeChannelName(name) {
     return name
@@ -13,8 +35,39 @@ function makeChannelName(name) {
         .substring(0, 90) || 'tarea';
 }
 
-// Load tasks from file with error handling
-function loadTasks() {
+// Load tasks from database or file
+async function loadTasks() {
+    if (useDatabase) {
+        try {
+            const tasks = await Task.findAll();
+            const tasksObj = {};
+            tasks.forEach(task => {
+                if (!tasksObj[task.userId]) {
+                    tasksObj[task.userId] = {};
+                }
+                tasksObj[task.userId][task.id] = {
+                    title: task.title,
+                    note: task.note,
+                    attachmentUrl: task.attachmentUrl,
+                    dueDate: task.dueDate.toISOString(),
+                    reminder: task.reminder,
+                    reminderIntervalMs: task.reminderIntervalMs,
+                    nextReminder: task.nextReminder.toISOString(),
+                    channelName: task.channelName
+                };
+            });
+            return tasksObj;
+        } catch (error) {
+            console.error('Error loading tasks from database:', error);
+            return loadTasksFromFile();
+        }
+    } else {
+        return loadTasksFromFile();
+    }
+}
+
+// Load tasks from file (fallback)
+function loadTasksFromFile() {
     try {
         if (fs.existsSync(tasksFile)) {
             const data = fs.readFileSync(tasksFile, 'utf8');
@@ -40,8 +93,48 @@ function loadTasks() {
     return {};
 }
 
-// Save tasks to file with backup
-function saveTasks(tasks) {
+// Save tasks to database or file
+async function saveTasks(tasks) {
+    if (useDatabase) {
+        try {
+            // Clear existing tasks
+            await Task.destroy({ where: {} });
+
+            // Insert new tasks
+            const taskRecords = [];
+            for (const userId in tasks) {
+                for (const taskId in tasks[userId]) {
+                    const task = tasks[userId][taskId];
+                    taskRecords.push({
+                        id: taskId,
+                        userId: userId,
+                        title: task.title,
+                        note: task.note || '',
+                        attachmentUrl: task.attachmentUrl || null,
+                        dueDate: new Date(task.dueDate),
+                        reminder: task.reminder || '2h',
+                        reminderIntervalMs: task.reminderIntervalMs || 7200000,
+                        nextReminder: new Date(task.nextReminder),
+                        channelName: task.channelName || null
+                    });
+                }
+            }
+
+            if (taskRecords.length > 0) {
+                await Task.bulkCreate(taskRecords);
+            }
+        } catch (error) {
+            console.error('Error saving tasks to database:', error);
+            // Fallback to file
+            saveTasksToFile(tasks);
+        }
+    } else {
+        saveTasksToFile(tasks);
+    }
+}
+
+// Save tasks to file (fallback)
+function saveTasksToFile(tasks) {
     try {
         // Create backup before overwriting
         const backupFile = tasksFile + '.backup';
@@ -101,5 +194,6 @@ module.exports = {
     loadTasks,
     saveTasks,
     parseReminderInterval,
-    safeInteractionReply
+    safeInteractionReply,
+    initializeDatabase
 };

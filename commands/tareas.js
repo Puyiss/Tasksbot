@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { loadTasks } = require('../utils');
 
 module.exports = async (interaction) => {
-    const tasks = loadTasks();
+    const tasks = await loadTasks();
     const userTasks = tasks[interaction.user.id] || {};
     const taskEntries = Object.entries(userTasks);
 

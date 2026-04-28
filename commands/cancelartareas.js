@@ -2,7 +2,7 @@ const { EmbedBuilder } = require('discord.js');
 const { CATEGORY_ID, loadTasks, saveTasks } = require('../utils');
 
 module.exports = async (interaction) => {
-    const tasks = loadTasks();
+    const tasks = await loadTasks();
     const userTasks = tasks[interaction.user.id] || {};
     const taskEntries = Object.entries(userTasks);
 
@@ -24,7 +24,7 @@ module.exports = async (interaction) => {
     }
 
     delete tasks[interaction.user.id];
-    saveTasks(tasks);
+    await saveTasks(tasks);
 
     const cancelAllEmbed = new EmbedBuilder()
         .setTitle('Todas las tareas canceladas')
