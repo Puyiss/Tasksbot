@@ -1,7 +1,7 @@
 {
-  "name": "tareas-bot",
+  "name": "ruby-bot",
   "version": "1.0.0",
-  "description": "Discord bot for automated tasks with reminders",
+  "description": "Ruby — bot de Discord para tareas y recordatorios",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"

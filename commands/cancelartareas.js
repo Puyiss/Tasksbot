@@ -1,5 +1,5 @@
 const { EmbedBuilder } = require('discord.js');
-const { CATEGORY_ID, loadTasks, saveTasks } = require('../utils');
+const { CATEGORY_ID, loadTasks, saveTasks, addToHistory } = require('../utils');
 
 module.exports = async (interaction) => {
     const tasks = await loadTasks();
@@ -12,6 +12,11 @@ module.exports = async (interaction) => {
             .setDescription('No tienes tareas pendientes para cancelar.')
             .setColor(0xFFCC00);
         return interaction.reply({ embeds: [emptyEmbed], ephemeral: true });
+    }
+
+    // Guardar todas las tareas en historial antes de eliminarlas
+    for (const [taskId, task] of taskEntries) {
+        addToHistory(interaction.user.id, { id: taskId, ...task }, 'cancelled', 'Canceladas todas desde /cancelartareas');
     }
 
     if (interaction.guild) {

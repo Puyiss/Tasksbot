@@ -52,7 +52,10 @@ async function loadTasks() {
                     reminder: task.reminder,
                     reminderIntervalMs: task.reminderIntervalMs,
                     nextReminder: task.nextReminder.toISOString(),
-                    channelName: task.channelName
+                    channelName: task.channelName,
+                    isCompleted: task.isCompleted || false,
+                    completedAt: task.completedAt ? task.completedAt.toISOString() : null,
+                    createdAt: task.createdAt ? task.createdAt.toISOString() : task.dueDate.toISOString()
                 };
             });
             return tasksObj;
@@ -114,7 +117,9 @@ async function saveTasks(tasks) {
                         reminder: task.reminder || '2h',
                         reminderIntervalMs: task.reminderIntervalMs || 7200000,
                         nextReminder: new Date(task.nextReminder),
-                        channelName: task.channelName || null
+                        channelName: task.channelName || null,
+                        isCompleted: task.isCompleted || false,
+                        completedAt: task.completedAt ? new Date(task.completedAt) : null
                     });
                 }
             }
@@ -191,6 +196,57 @@ async function safeInteractionReply(interaction, options) {
     }
 }
 
+// History functions
+const historyFile = path.join(__dirname, 'data', 'history.json');
+
+function loadHistory() {
+    try {
+        if (fs.existsSync(historyFile)) {
+            const data = fs.readFileSync(historyFile, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Error loading history.json:', error);
+    }
+    return {};
+}
+
+function saveHistory(history) {
+    try {
+        const dir = path.dirname(historyFile);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        fs.writeFileSync(historyFile, JSON.stringify(history, null, 2));
+    } catch (error) {
+        console.error('Error saving history:', error);
+    }
+}
+
+function addToHistory(userId, task, status, reason = '') {
+    const history = loadHistory();
+    if (!history[userId]) {
+        history[userId] = [];
+    }
+    
+    history[userId].push({
+        taskId: task.id || Date.now().toString(),
+        title: task.title,
+        note: task.note || '',
+        dueDate: task.dueDate,
+        completedAt: new Date().toISOString(),
+        status: status, // 'completed' o 'cancelled'
+        reason: reason
+    });
+    
+    saveHistory(history);
+}
+
+function getHistory(userId) {
+    const history = loadHistory();
+    return history[userId] || [];
+}
+
 module.exports = {
     CATEGORY_ID,
     MAX_ATTACHMENT_SIZE,
@@ -199,5 +255,9 @@ module.exports = {
     saveTasks,
     parseReminderInterval,
     safeInteractionReply,
-    initializeDatabase
+    initializeDatabase,
+    loadHistory,
+    saveHistory,
+    addToHistory,
+    getHistory
 };

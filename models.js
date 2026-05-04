@@ -46,6 +46,14 @@ const Task = sequelize.define('Task', {
         type: DataTypes.STRING(100),
         allowNull: true
     },
+    isCompleted: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
+    },
+    completedAt: {
+        type: DataTypes.DATE,
+        allowNull: true
+    },
     createdAt: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW

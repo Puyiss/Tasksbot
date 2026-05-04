@@ -23,7 +23,7 @@ module.exports = async (interaction) => {
     }
 
     // Establecer el canal
-    setStatusChannelId(channel.id);
+    await setStatusChannelId(channel.id);
 
     // Obtener estadísticas
     const tasks = await loadTasks();
@@ -33,7 +33,7 @@ module.exports = async (interaction) => {
     }
 
     // Enviar primer mensaje de estado
-    const statusEmbed = createStatusEmbed(totalTasks);
+    const statusEmbed = await createStatusEmbed(totalTasks);
     try {
         await channel.send({ embeds: [statusEmbed] });
     } catch (error) {
